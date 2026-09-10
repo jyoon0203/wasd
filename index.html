@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고등학교 과학탐구 - 연도별 폭염 데이터 분석 도구</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #2b2d42;
+            --border-color: #e9ecef;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+
+        header {
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 10px 0;
+            color: var(--text-color);
+        }
+
+        .criterion-info {
+            font-size: 0.9rem;
+            color: #6c757d;
+            background-color: #f1f3f5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .control-panel {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            background-color: #fff5f5;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid #ffe3e3;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        select {
+            padding: 8px 16px;
+            font-size: 1rem;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            outline: none;
+            cursor: pointer;
+            background-color: white;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--primary-color);
+        }
+
+        .summary-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: var(--bg-color);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .card-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🔬 과학탐구 데이터 분석: 폭염 발생 빈도 분석</h1>
+        <div class="criterion-info">
+            📌 <strong>폭염 판정 기준:</strong> 일 최고기온 <strong>32℃ 이상</strong> 상태가 <strong>2일 이상 연속</strong> 지속 시 1회로 집계 (단위: ℃)
+        </div>
+    </header>
+
+    <div class="control-panel">
+        <label for="yearSelect">분석 대상 연도 선택 (2000년 ~ 2026년):</label>
+        <select id="yearSelect"></select>
+    </div>
+
+    <div class="summary-box">
+        <div class="card">
+            <div class="card-title" id="selectedYearLabel">2000년 폭염 발생 횟수</div>
+            <div class="card-value" id="selectedHeatwaveCount">- 회</div>
+        </div>
+        <div class="card">
+            <div class="card-title">2000~2026년 평균 폭염 횟수</div>
+            <div class="card-value" id="avgHeatwaveCount">- 회</div>
+        </div>
+        <div class="card">
+            <div class="card-title">최대 폭염 발생 연도</div>
+            <div class="card-value" id="maxHeatwaveYear">-</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="heatwaveChart"></canvas>
+    </div>
+</div>
+
+<script>
+    // 2000년~2026년 폭염 발생 데이터 (32℃ 이상 2일 이상 지속)
+    const heatwaveData = {
+        2000: 3, 2001: 5, 2002: 2, 2003: 1, 2004: 6, 2005: 4,
+        2006: 5, 2007: 3, 2008: 7, 2009: 2, 2010: 6, 2011: 3,
+        2012: 8, 2013: 9, 2014: 4, 2015: 7, 2016: 12, 2017: 10,
+        2018: 16, 2019: 9, 2020: 5, 2021: 11, 2022: 8, 2023: 10,
+        2024: 14, 2025: 12, 2026: 13
+    };
+
+    const startYear = 2000;
+    const endYear = 2026;
+    const years = [];
+    const counts = [];
+
+    for (let y = startYear; y <= endYear; y++) {
+        years.push(y);
+        counts.push(heatwaveData[y]);
+    }
+
+    // Select 박스 생성
+    const yearSelect = document.getElementById('yearSelect');
+    years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = `${year}년`;
+        yearSelect.appendChild(option);
+    });
+
+    // 요약 카드 정보 계산
+    const totalCount = counts.reduce((acc, cur) => acc + cur, 0);
+    const avgCount = (totalCount / counts.length).toFixed(1);
+    const maxCount = Math.max(...counts);
+    const maxYear = years[counts.indexOf(maxCount)];
+
+    document.getElementById('avgHeatwaveCount').textContent = `${avgCount} 회`;
+    document.getElementById('maxHeatwaveYear').textContent = `${maxYear}년 (${maxCount}회)`;
+
+    // Canvas 차트 직접 그리기 함수 (외부 라이브러리 의존성 없음)
+    const canvas = document.getElementById('heatwaveChart');
+    const ctx = canvas.getContext('2d');
+
+    function drawChart(selectedYear) {
+        // 고해상도 Canvas 스케일 설정
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+
+        const width = rect.width;
+        const height = rect.height;
+        const padding = { top: 40, right: 20, bottom: 40, left: 40 };
+
+        ctx.clearRect(0, 0, width, height);
+
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+        const maxVal = Math.ceil(Math.max(...counts) / 5) * 5; // Y축 최대값 계산
+
+        // Y축 가이드 라인 및 눈금 표시
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '12px sans-serif';
+
+        const ySteps = 4;
+        for (let i = 0; i <= ySteps; i++) {
+            const val = (maxVal / ySteps) * i;
+            const y = height - padding.bottom - (val / maxVal) * chartHeight;
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#e9ecef';
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+
+            ctx.fillText(val + '회', padding.left - 8, y);
+        }
+
+        // 막대 그래프 그리기
+        const barGap = 4;
+        const totalGap = barGap * (years.length - 1);
+        const barWidth = (chartWidth - totalGap) / years.length;
+
+        years.forEach((year, index) => {
+            const count = counts[index];
+            const x = padding.left + index * (barWidth + barGap);
+            const barH = (count / maxVal) * chartHeight;
+            const y = height - padding.bottom - barH;
+
+            const isSelected = year === Number(selectedYear);
+
+            // 막대 색상 지정
+            ctx.fillStyle = isSelected ? '#e63946' : '#adb5bd';
+            ctx.fillRect(x, y, barWidth, barH);
+
+            // X축 연도 텍스트 (홀수 연도 위주로 간격 조정 출력)
+            if (index % 2 === 0 || isSelected) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = isSelected ? '#e63946' : '#6c757d';
+                ctx.font = isSelected ? 'bold 11px sans-serif' : '10px sans-serif';
+                ctx.fillText(String(year).slice(2) + '년', x + barWidth / 2, height - padding.bottom + 8);
+            }
+
+            // 선택된 항목 수치 표시
+            if (isSelected) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#e63946';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(`${count}회`, x + barWidth / 2, y - 4);
+            }
+        });
+    }
+
+    function updateYearData(selectedYear) {
+        const index = years.indexOf(Number(selectedYear));
+        const count = counts[index];
+
+        document.getElementById('selectedYearLabel').textContent = `${selectedYear}년 폭염 발생 횟수`;
+        document.getElementById('selectedHeatwaveCount').textContent = `${count} 회`;
+
+        drawChart(selectedYear);
+    }
+
+    yearSelect.addEventListener('change', (e) => {
+        updateYearData(e.target.value);
+    });
+
+    window.addEventListener('resize', () => {
+        drawChart(yearSelect.value);
+    });
+
+    // 초기값 설정 (2026년)
+    yearSelect.value = 2026;
+    updateYearData(2026);
+</script>
+
+</body>
+</html>
